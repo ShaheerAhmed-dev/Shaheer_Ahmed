@@ -1,0 +1,217 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mechanical</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="{% static 'bsa_app/styles.css' %}">
+    <script src="{% static 'bsa_app/styles.js' %}"></script>
+</head>
+<body>
+    
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            
+                <div>
+                    <span class="navbar-brand">Mechanical</span>
+                    <span id="ledIcon" class="led"></span>
+                </div>
+            
+        </nav>
+
+    <!-- Modal -->
+        <div class="modal fade" id="equipmentModal" tabindex="-1" role="dialog" aria-labelledby="equipmentModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                <h5 class="modal-title" id="equipmentModalLabel">Equipment Details</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                </div>
+                <div class="modal-body">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Equipment</th>
+                        <th>Status</th>
+                    </tr>
+                    </thead>
+                    <tbody id="equipmentTableBody">
+                    <!-- Equipment data will be dynamically added here -->
+                    </tbody>
+                </table>
+                </div>
+            </div>
+            </div>
+        </div>
+        <div class="mt-4">
+            <div class="row">
+                <div class="col-sm-4"></div>
+                <div class="col-sm-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h1 class="card-title text-center">{{ equipment|upper }}</h1>
+                            <div id="widgetGraph" class="graph-container d-flex flex-row justify-content-center align-items-center"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-4"></div>
+            </div>
+        </div>
+    
+
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.2.1/dist/echarts.min.js"></script>
+<script>
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+            var equipment = "{{ equipment }}"; 
+            dashboardFunction(equipment);
+            setInterval(dashboardFunction, 3000, equipment); // Call dashboardFunction every 3 seconds with equipment variable
+        }, 2000); // Call dashboardFunction after 2 seconds of document being loaded
+
+        function dashboardFunction(equipment) {
+            // AJAX call to fetch data
+            fetch(`/mechanical/${equipment}?data=status`, { // Use equipment variable here
+                method: 'GET'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                let runningCount = 0;
+                let stoppedCount = 0;
+                let faultCount = 0;
+        
+                // Calculate counts
+                for (let i = 0; i < data.length; i++) {
+                    if (data[i].Status == 1) {
+                        runningCount++;
+                    } else if (data[i].Status == 0) {
+                        stoppedCount++;
+                    }
+                    if (data[i].Fault == 1) {
+                        faultCount++;
+                    }
+                }
+
+                // Update LED icon color based on fault count
+                let ledIcon = document.getElementById('ledIcon');
+                if (faultCount > 0) {
+                    ledIcon.classList.add('led-red');
+                } else {
+                    ledIcon.classList.add('led-green');
+                }
+        
+                // Plotting of chart
+                let chartOptions = generateChartOptions(runningCount, stoppedCount, faultCount);
+                let chart = echarts.init(document.getElementById('widgetGraph'));
+                chart.setOption(chartOptions);
+
+                populateEquipmentTable(data);
+            })
+            .catch(error => {
+                console.error('Error fetching or parsing data:', error);
+            });
+
+            // Open the modal when the graph is clicked
+            document.getElementById('widgetGraph').addEventListener('click', function() {
+                let modal = document.getElementById('equipmentModal');
+                modal.classList.add('show');
+                modal.style.display = 'block';
+            });
+
+            // close the modal when cross button is clicked
+            document.querySelector('.modal .close').addEventListener('click', function() {
+                console.log('Close button clicked');
+                let modal = document.getElementById('equipmentModal');
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+            });
+        }
+
+        function generateChartOptions(runningCount, stoppedCount, faultCount) {
+            let totalEquipments = runningCount + stoppedCount + faultCount;
+            let titleText;
+            let seriesData = [];
+
+            if (faultCount == 0) {
+                titleText = runningCount + '/' + totalEquipments;
+                seriesData = [
+                    { value: runningCount, name: 'Running', itemStyle: { color: '#6DB8FF' } },
+                    { value: stoppedCount, name: 'Stopped', itemStyle: { color: '#D3D3D3' } }
+                ];
+            } else {
+                titleText = faultCount + '/' + totalEquipments;
+                seriesData = [
+                    { value: runningCount, name: 'Running', itemStyle: { color: '#6DB8FF' } },
+                    { value: stoppedCount, name: 'Stopped', itemStyle: { color: '#D3D3D3' } },
+                    { value: faultCount, name: 'Fault', itemStyle: { color: '#FF6666' } }
+                ];
+                // Add red shadow to the widget
+                document.querySelector('.card').style.boxShadow = '0 0 10px 5px rgba(255, 0, 0, 0.2)';
+            }
+
+            return {
+                title: {
+                    text: titleText,
+                    left: 'center',
+                    top: 'middle',
+                    textStyle: {
+                        fontSize: 18,
+                        color: '#333'
+                    }
+                },
+                tooltip: {
+                    trigger: 'item'
+                },
+                series: [
+                    {
+                        type: 'pie',
+                        radius: ['50%', '70%'],
+                        avoidLabelOverlap: false,
+                        label: {
+                            show: false,
+                            position: 'center'
+                        },
+                        emphasis: {
+                            label: {
+                                show: true,
+                                fontSize: '20',
+                                fontWeight: 'bold'
+                            }
+                        },
+                        labelLine: {
+                            show: false
+                        },
+                        data: seriesData
+                    }
+                ]
+            };
+        }
+
+        function populateEquipmentTable(data) {
+            let tableBody = document.getElementById('equipmentTableBody');
+            tableBody.innerHTML = ''; // Clear previous content
+    
+            // Loop through equipment data and create table rows
+            data.forEach(function(item) {
+                let row = '<tr><td>' + item.Equipment + '</td><td>' + (item.Status ? 'Running' : 'Stopped') + '</td></tr>';
+                tableBody.innerHTML += row;
+            });
+        }
+    });
+</script>
+
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
+

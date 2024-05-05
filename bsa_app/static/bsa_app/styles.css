@@ -1,0 +1,44 @@
+.navbar {
+    background-color: #333;
+    overflow: hidden;
+}
+
+.navbar-left {
+    float: left;
+    color: white;
+    padding: 14px 20px;
+    font-size: 17px;
+}
+
+/* CSS styles for the LED */
+.led {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+    /* background-color: green; */
+}
+
+.led-green {
+    background-color: green;
+}
+
+.led-red {
+    background-color: red;
+}
+
+.equipment-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.equipment-status {
+    margin-left: 10px;
+}
+
+.graph-container {
+    height: 11rem;
+    border: 1px solid #ccc;
+    margin-top: 20px;
+}
